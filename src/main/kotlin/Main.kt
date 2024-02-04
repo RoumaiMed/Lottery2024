@@ -1,9 +1,9 @@
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Text
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,11 +26,7 @@ import kotlin.math.exp
 val _RED = Color(237, 106, 95)
 
 enum class Step {
-    Lucky,
-    Forth,
-    Third,
-    Second,
-    First,
+    Lucky, Forth, Third, Second, First,
 }
 
 fun rearrange(members: List<String>): ArrayList<String> {
@@ -50,6 +46,7 @@ fun RandomButton(
     members: MutableList<String>,
     triggerCount: Int,
     size: DpSize,
+    longDelay: Boolean = true,
     onReset: () -> Unit,
     onSelected: (String) -> Unit
 ) {
@@ -58,26 +55,42 @@ fun RandomButton(
     var memberIndex by remember { mutableStateOf(0) }
     var member by remember { mutableStateOf(rearrangedMembers[memberIndex]) }
 
-    val memberSize = rearrangedMembers.size
     val scope = rememberCoroutineScope()
 
     val triggerOne = suspend {
         withContext(Dispatchers.IO) {
+            val memberSize = rearrangedMembers.size
             // 随机播放一秒
             var index = 0
-            while (working && index < 10) {
-                delay(100)
-                member = rearrangedMembers[index++ % memberSize]
+            val total = if (longDelay) 50 else 20
+            while (working && index++ < total) {
+                delay(30)
+                member = rearrangedMembers[index % rearrangedMembers.size]
             }
             // target id:
             val target = (memberSize / 2 + 1) % memberSize
-            memberIndex = (target - 5) % memberSize
+            memberIndex = (target - 6) % memberSize
             var count = 0
-            while (working && count++ < 5) {
+            while (working && count++ < 6) {
                 index = memberIndex++ % memberSize
                 member = rearrangedMembers[index]
-                delay((100 * exp(index * 1.2f / memberSize)).toLong())
+                delay((100 * exp(index * 3.6f / memberSize)).toLong())
+                if (count == 5) { // 多等一段时间展示最终结果
+                    delay(200)
+                }
             }
+            // 闪烁一下
+            val name = member
+            count = 0
+            val total2 = if (longDelay) 2 else 1
+            while (count++ < total2) {
+                member = ""
+                delay(200)
+                member = name
+                delay(400)
+            }
+            member = name
+            // take it.
             onSelected(member)
             // clear and rearrange.
             rearrangedMembers.remove(member) // 去掉已中奖的人
@@ -85,10 +98,9 @@ fun RandomButton(
         }
     }
 
-    Row() {
+    Row {
         if (working) {
-            OutlinedButton(
-                modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
+            OutlinedButton(modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     backgroundColor = _RED,
                     contentColor = Color.White,
@@ -103,10 +115,9 @@ fun RandomButton(
                 )
             }
         } else {
-            if (members.size - triggerCount >= memberSize) {
+            if (members.size - triggerCount >= rearrangedMembers.size) {
 
-                OutlinedButton(
-                    modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
+                OutlinedButton(modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         backgroundColor = _RED,
                         contentColor = Color.White,
@@ -117,13 +128,17 @@ fun RandomButton(
                     }) {
                     Text(
                         "重置",
-                        fontSize = 96.sp,
+                        fontSize = 86.sp,
                         fontWeight = FontWeight.Bold,
+                    )
+                    Icon(
+                        modifier = Modifier.size(96.dp),
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "next"
                     )
                 }
             } else {
-                OutlinedButton(
-                    modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
+                OutlinedButton(modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         backgroundColor = _RED,
                         contentColor = Color.White,
@@ -146,8 +161,13 @@ fun RandomButton(
                     }) {
                     Text(
                         "开始",
-                        fontSize = 96.sp,
+                        fontSize = 86.sp,
                         fontWeight = FontWeight.Bold,
+                    )
+                    Icon(
+                        modifier = Modifier.size(96.dp),
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "next"
                     )
                 }
             }
@@ -157,11 +177,7 @@ fun RandomButton(
 
 @Composable
 fun CardN(
-    title: String,
-    members: MutableList<String>,
-    triggerCount: Int,
-    itemSize: DpSize,
-    onNext: (List<String>) -> Unit
+    title: String, members: MutableList<String>, triggerCount: Int, itemSize: DpSize, onNext: (List<String>) -> Unit
 ) {
 
     val selectedMembers = remember { mutableStateListOf<String>() }
@@ -182,7 +198,9 @@ fun CardN(
             horizontalArrangement = Arrangement.Center,
         ) {
             if (triggerCount == 1) {
-                Box(modifier = Modifier.size(itemSize.width * 2, itemSize.height), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.size(itemSize.width * 2, itemSize.height), contentAlignment = Alignment.Center
+                ) {
                     if (selectedMembers.isNotEmpty()) {
                         Text(
                             text = selectedMembers[0],
@@ -223,18 +241,21 @@ fun CardN(
                 selectedMembers.add(it)
             }
             if (triggerCount > 1 && selectedMembers.size >= triggerCount) {
-                OutlinedButton(
-                    modifier = Modifier.size(itemSize.width * 2, itemSize.height).padding(24.dp),
+                OutlinedButton(modifier = Modifier.size(itemSize.width * 2, itemSize.height).padding(24.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         backgroundColor = _RED,
                         contentColor = Color.White,
                     ),
-                    onClick = { onNext(selectedMembers) }
-                ) {
+                    onClick = { onNext(selectedMembers) }) {
                     Text(
                         "下一轮",
-                        fontSize = 96.sp,
+                        fontSize = 86.sp,
                         fontWeight = FontWeight.Bold,
+                    )
+                    Icon(
+                        modifier = Modifier.size(96.dp),
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "next"
                     )
                 }
             }
@@ -243,15 +264,22 @@ fun CardN(
 }
 
 @Composable
-fun Card20(members: MutableList<String>, itemSize: DpSize, onNext: (List<String>) -> Unit) {
+fun Card20(title: String, members: MutableList<String>, itemSize: DpSize, onNext: (List<String>) -> Unit) {
 
     val selectedMembers = remember { mutableStateListOf<String>() }
+    val size = DpSize(itemSize.width, itemSize.height - 12.dp)
 
     Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(), // .height(itemSize.height),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(title, fontSize = 72.sp, fontWeight = FontWeight.Bold)
+        }
         for (i in 0 until 2) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 for (j in 0 until 5) {
-                    Box(modifier = Modifier.size(itemSize), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(size), contentAlignment = Alignment.Center) {
                         val index = i * 5 + j
                         if (index < selectedMembers.size) {
                             Text(
@@ -268,7 +296,7 @@ fun Card20(members: MutableList<String>, itemSize: DpSize, onNext: (List<String>
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
         ) {
-            RandomButton(members = members, triggerCount = 20, size = itemSize, onReset = {
+            RandomButton(members = members, triggerCount = 20, size = size, longDelay = false, onReset = {
                 selectedMembers.clear()
             }) {
                 println("Selected: $it")
@@ -276,18 +304,21 @@ fun Card20(members: MutableList<String>, itemSize: DpSize, onNext: (List<String>
                 selectedMembers.add(it)
             }
             if (selectedMembers.size >= 20) {
-                OutlinedButton(
-                    modifier = Modifier.size(itemSize.width * 2, itemSize.height),
+                OutlinedButton(modifier = Modifier.size(size.width * 2, size.height).padding(24.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         backgroundColor = _RED,
                         contentColor = Color.White,
                     ),
-                    onClick = { onNext(selectedMembers) }
-                ) {
+                    onClick = { onNext(selectedMembers) }) {
                     Text(
                         "下一轮",
-                        fontSize = 96.sp,
+                        fontSize = 86.sp,
                         fontWeight = FontWeight.Bold,
+                    )
+                    Icon(
+                        modifier = Modifier.size(96.dp),
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "next"
                     )
                 }
             }
@@ -295,7 +326,7 @@ fun Card20(members: MutableList<String>, itemSize: DpSize, onNext: (List<String>
         for (i in 2 until 4) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 for (j in 0 until 5) {
-                    Box(modifier = Modifier.size(itemSize), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(size), contentAlignment = Alignment.Center) {
                         val index = i * 5 + j
                         if (index < selectedMembers.size) {
                             Text(
@@ -314,60 +345,61 @@ fun Card20(members: MutableList<String>, itemSize: DpSize, onNext: (List<String>
 @Composable
 @Preview
 fun App(size: DpSize) {
-    var text by remember { mutableStateOf("Hello, World!") }
     val members by remember { mutableStateOf(MEMBERS.toMutableList()) }
-    var step by remember { mutableStateOf(Step.First) }
+    var step by remember { mutableStateOf(Step.Lucky) }
 
     MaterialTheme {
         when (step) {
-            Step.Lucky ->
-                Card20(members = members.toMutableList(), size / 5) {
-                    step = Step.Forth
-                    members.removeAll(it)
-                }
+            Step.Lucky -> Card20(
+                "\uD83C\uDFC5\uFE0F纪念奖\uD83C\uDFC5\uFE0F", members = members.toMutableList(), size / 5
+            ) {
+                step = Step.Forth
+                members.removeAll(it)
+                println("Next: 四等奖")
+            }
 
-            Step.Forth ->
-                CardN(
-                    "\uD83C\uDFC5\uFE0F四等奖\uD83C\uDFC5\uFE0F",
-                    members = members.toMutableList(),
-                    triggerCount = 4,
-                    size / 5
-                ) {
-                    step = Step.Third
-                    members.removeAll(it)
-                }
+            Step.Forth -> CardN(
+                "\uD83C\uDFC5\uFE0F四等奖\uD83C\uDFC5\uFE0F",
+                members = members.toMutableList(),
+                triggerCount = 4,
+                size / 5
+            ) {
+                step = Step.Third
+                members.removeAll(it)
+                println("Next: 三等奖")
+            }
 
-            Step.Third ->
-                CardN(
-                    "\uD83C\uDFC5\uFE0F三等奖\uD83C\uDFC5\uFE0F",
-                    members = members.toMutableList(),
-                    triggerCount = 3,
-                    size / 5
-                ) {
-                    step = Step.Second
-                    members.removeAll(it)
-                }
+            Step.Third -> CardN(
+                "\uD83C\uDFC5\uFE0F三等奖\uD83C\uDFC5\uFE0F",
+                members = members.toMutableList(),
+                triggerCount = 3,
+                size / 5
+            ) {
+                step = Step.Second
+                members.removeAll(it)
+                println("Next: 二等奖")
+            }
 
-            Step.Second ->
-                CardN(
-                    "\uD83C\uDFC5\uFE0F二等奖\uD83C\uDFC5\uFE0F",
-                    members = members.toMutableList(),
-                    triggerCount = 2,
-                    size / 5
-                ) {
-                    step = Step.First
-                    members.removeAll(it)
-                }
+            Step.Second -> CardN(
+                "\uD83C\uDFC5\uFE0F二等奖\uD83C\uDFC5\uFE0F",
+                members = members.toMutableList(),
+                triggerCount = 2,
+                size / 5
+            ) {
+                step = Step.First
+                members.removeAll(it)
+                println("Next: 一等奖")
+            }
 
-            Step.First ->
-                CardN(
-                    "\uD83C\uDFC5\uFE0F一等奖\uD83C\uDFC5\uFE0F",
-                    members = members.toMutableList(),
-                    triggerCount = 1,
-                    size / 5
-                ) {
-                    members.removeAll(it)
-                }
+            Step.First -> CardN(
+                "\uD83C\uDFC5\uFE0F一等奖\uD83C\uDFC5\uFE0F",
+                members = members.toMutableList(),
+                triggerCount = 1,
+                size / 5
+            ) {
+                members.removeAll(it)
+                println("抽奖结束")
+            }
         }
     }
 }
@@ -375,7 +407,11 @@ fun App(size: DpSize) {
 fun main() = application {
     val state = rememberWindowState(placement = WindowPlacement.Maximized)
 
-    Window(onCloseRequest = ::exitApplication, state = state) {
+    Window(
+        title = "\uD83C\uDFC5\uFE0F柔脉爆金币神器｜十连抽必中大奖｜抽了还能重置抽｜抽到手抽｜抽到不认识抽字\uD83C\uDFC5\uFE0F",
+        onCloseRequest = ::exitApplication,
+        state = state
+    ) {
         App(state.size)
     }
 }
